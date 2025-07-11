@@ -12,11 +12,15 @@ export const loadScreenshots = async () => {
   return data || [];
 };
 
-export const deleteScreenshot = async (indexToRemove) => {
-  const all = (await get("all", store)) || [];
-  const sorted = all.sort((a, b) => b.timestamp - a.timestamp);
-  sorted.splice(indexToRemove, 1);
-  await set("all", sorted, store);
+export const deleteScreenshot = async (indexToRemove, sortLatestFirst) => {
+  let all = (await get("all", store)) || [];
+  if (sortLatestFirst) {
+    all = all.sort((a, b) => b.timestamp - a.timestamp);
+  } else {
+    all = all.sort((a, b) => a.timestamp - b.timestamp);
+  }
+  all.splice(indexToRemove, 1);
+  await set("all", all, store);
 };
 
 export const clearAllScreenshots = async () => {

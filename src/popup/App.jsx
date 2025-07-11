@@ -23,7 +23,7 @@ const App = () => {
   }, [sortLatestFirst]);
 
   const handleDelete = async (index) => {
-    await deleteScreenshot(index);
+    await deleteScreenshot(index, sortLatestFirst);
     const updated = await loadScreenshots();
     setScreenshots(updated);
   };

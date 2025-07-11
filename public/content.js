@@ -1,9 +1,15 @@
+let lastProcessTime = 200; // start with a sensible default (200 ms)
+const PROCESS_MULTIPLIER = 1.5;
+
 // Debounce helper
-function debounce(fn, delay) {
+function dynamicDebounce(fn) {
   let timer;
   return function (...args) {
     clearTimeout(timer);
-    timer = setTimeout(() => fn.apply(this, args), delay);
+    timer = setTimeout(
+      () => fn.apply(this, args),
+      Math.max(100, lastProcessTime * PROCESS_MULTIPLIER)
+    );
   };
 }
 
@@ -52,32 +58,24 @@ function compressImage(pngDataUrl, quality = 0.6) {
 async function highlightAndScreenshot(el) {
   if (!el) return;
 
-  // 1) Highlight
   el.classList.add("__screenshot-highlight");
-
-  // 2) Wait for paint
   await new Promise((r) => setTimeout(r, 50));
 
-  // 3) Capture raw screenshot from background
-  chrome.runtime.sendMessage({ type: "capture_tab" }, async (pngDataUrl) => {
-    if (!pngDataUrl) {
+  const start = performance.now(); // ← start timer
+  chrome.runtime.sendMessage({ type: "capture_tab" }, async (png) => {
+    if (!png) {
       el.classList.remove("__screenshot-highlight");
       return;
     }
-
-    // 4) Compress to JPEG
-    const compressed = await compressImage(pngDataUrl, 0.6);
-
-    // 5) Send to background to save
+    const compressed = await compressImage(png, 0.6);
     chrome.runtime.sendMessage({
       type: "save_screenshot",
       dataUrl: compressed,
     });
-
-    // 6) Clean up highlight
-    setTimeout(() => {
-      el.classList.remove("__screenshot-highlight");
-    }, 100);
+    const duration = performance.now() - start; // ← measure duration
+    lastProcessTime = duration; // ← update global
+    console.log(`Process took ${Math.round(duration)}ms`);
+    setTimeout(() => el.classList.remove("__screenshot-highlight"), 100);
   });
 }
 
@@ -90,22 +88,23 @@ document.addEventListener(
   true
 );
 
-// Input — capture phase, debounced
-document.addEventListener(
-  "input",
-  debounce((e) => {
-    highlightAndScreenshot(e.target);
-  }, 300),
-  true
-);
+// Debounced input listener (dynamic)
+const debouncedInput = dynamicDebounce((e) => {
+  const el = e.target;
+  highlightAndScreenshot(el);
+});
+document.addEventListener("input", debouncedInput, true);
 
-// Keydown — capture phase, debounced
+// Debounced keydown listener (dynamic)
+const debouncedKeydown = dynamicDebounce(() => {
+  highlightAndScreenshot(document.activeElement);
+});
 document.addEventListener(
   "keydown",
-  debounce((e) => {
+  (e) => {
     if (e.key.length === 1 || e.key === "Backspace" || e.key === "Delete") {
-      highlightAndScreenshot(document.activeElement);
+      debouncedKeydown();
     }
-  }, 500),
+  },
   true
 );
