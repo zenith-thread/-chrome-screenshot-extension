@@ -12,71 +12,100 @@ function injectHighlightStyle() {
   const style = document.createElement("style");
   style.textContent = `
     .__screenshot-highlight {
-      outline: 4px solid red !important;
-      background-color: rgba(255, 0, 0, 0.12) !important;
+      outline: 3px solid red !important;
     }
   `;
   document.head.appendChild(style);
 }
-
 function waitForHeadAndInject() {
-  if (document.head) {
-    injectHighlightStyle();
-  } else {
-    const observer = new MutationObserver(() => {
+  if (document.head) injectHighlightStyle();
+  else {
+    const obs = new MutationObserver(() => {
       if (document.head) {
-        observer.disconnect();
+        obs.disconnect();
         injectHighlightStyle();
       }
     });
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-    });
+    obs.observe(document.documentElement, { childList: true, subtree: true });
   }
 }
-
 waitForHeadAndInject();
 
-function highlightAndScreenshot(el) {
-  if (!el) return;
-
-  el.classList.add("__screenshot-highlight");
-
-  // Wait for highlight to visibly render before screenshot
-  setTimeout(() => {
-    chrome.runtime.sendMessage({ type: "screenshot_request" });
-
-    // Remove highlight AFTER screenshot
-    setTimeout(() => {
-      el.classList.remove("__screenshot-highlight");
-    }, 50);
-  }, 50);
+// Utility: compress a PNG dataURL → JPEG dataURL
+function compressImage(pngDataUrl, quality = 0.6) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const jpegDataUrl = canvas.toDataURL("image/jpeg", quality);
+      resolve(jpegDataUrl);
+    };
+    img.src = pngDataUrl;
+  });
 }
 
-// Click listener — instant
-document.addEventListener("click", (e) => {
-  highlightAndScreenshot(e.target);
-});
+// Core: highlight element, capture, compress, save, then remove highlight
+async function highlightAndScreenshot(el) {
+  if (!el) return;
 
-// Debounced input screenshot
-const sendScreenshotRequest = debounce((el) => {
-  highlightAndScreenshot(el);
-}, 300);
+  // 1) Highlight
+  el.classList.add("__screenshot-highlight");
 
-// Input listener
-document.addEventListener("input", (e) => {
-  const el = e.target;
-  const tag = el.tagName.toLowerCase();
-  const type = el.getAttribute("type");
-  const isContentEditable = el.isContentEditable;
+  // 2) Wait for paint
+  await new Promise((r) => setTimeout(r, 50));
 
-  if (
-    tag === "input" ||
-    tag === "textarea" ||
-    isContentEditable ||
-    ["text", "email", "search", "password"].includes(type)
-  ) {
-    sendScreenshotRequest(el);
-  }
-});
+  // 3) Capture raw screenshot from background
+  chrome.runtime.sendMessage({ type: "capture_tab" }, async (pngDataUrl) => {
+    if (!pngDataUrl) {
+      el.classList.remove("__screenshot-highlight");
+      return;
+    }
+
+    // 4) Compress to JPEG
+    const compressed = await compressImage(pngDataUrl, 0.6);
+
+    // 5) Send to background to save
+    chrome.runtime.sendMessage({
+      type: "save_screenshot",
+      dataUrl: compressed,
+    });
+
+    // 6) Clean up highlight
+    setTimeout(() => {
+      el.classList.remove("__screenshot-highlight");
+    }, 100);
+  });
+}
+
+// Click — capture phase
+document.addEventListener(
+  "click",
+  (e) => {
+    highlightAndScreenshot(e.target);
+  },
+  true
+);
+
+// Input — capture phase, debounced
+document.addEventListener(
+  "input",
+  debounce((e) => {
+    highlightAndScreenshot(e.target);
+  }, 300),
+  true
+);
+
+// Keydown — capture phase, debounced
+document.addEventListener(
+  "keydown",
+  debounce((e) => {
+    if (e.key.length === 1 || e.key === "Backspace" || e.key === "Delete") {
+      highlightAndScreenshot(document.activeElement);
+    }
+  }, 500),
+  true
+);
