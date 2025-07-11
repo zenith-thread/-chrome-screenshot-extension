@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+:root {
+  background-color: #222;
+}
+
+.__screenshot-highlight {
+  outline: 2px dashed red !important;
+  background-color: rgba(255, 0, 0, 0.06) !important;
+  transition: none !important;
+}
