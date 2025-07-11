@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { loadScreenshots, deleteScreenshot } from "../db/screenshotStore";
+import {
+  loadScreenshots,
+  deleteScreenshot,
+  clearAllScreenshots,
+} from "../db/screenshotStore";
 
 // react icons
 import { FaRegTrashAlt } from "react-icons/fa";
@@ -31,6 +35,10 @@ const App = () => {
     link.click();
   };
 
+  const handleClearAll = async () => {
+    await clearAllScreenshots();
+    setScreenshots([]);
+  };
   return (
     <div className="p-4 overflow-y-auto max-h-[500px] min-w-[400px]">
       <div className="flex items-center justify-between mb-3">
@@ -43,6 +51,12 @@ const App = () => {
           />
           Sort by Latest
         </label>
+        <button
+          className="text-xs text-red-400 border border-red-400 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition cursor-pointer"
+          onClick={handleClearAll}
+        >
+          Clear All
+        </button>
       </div>
 
       {screenshots.length ? (

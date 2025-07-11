@@ -15,7 +15,11 @@
     {
       "matches": ["<all_urls>"],
       "js": ["idb-keyval-iife.min.js", "content.js"],
-      "run_at": "document_start"
+      "run_at": "document_idle"
     }
-  ]
+  ],
+  "icons": {
+    "16": "/public/icons/icon_16.png",
+    "32": "/public/icons/icon_32.png"
+  }
 }

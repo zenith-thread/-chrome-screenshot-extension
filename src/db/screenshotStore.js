@@ -18,3 +18,7 @@ export const deleteScreenshot = async (indexToRemove) => {
   sorted.splice(indexToRemove, 1);
   await set("all", sorted, store);
 };
+
+export const clearAllScreenshots = async () => {
+  await set("all", [], store);
+};
