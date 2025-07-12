@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "React‑Vite Extension",
   "version": "1.0.0",
-  "description": "spyware",
-  "permissions": ["activeTab", "tabs", "scripting"],
+  "description": "A screenshot capture and management tool",
+  "permissions": ["activeTab", "tabs", "scripting", "storage"],
   "action": {
     "default_popup": "index.html"
   },
